@@ -17,15 +17,17 @@ runs:
   using: 'composite'
   steps:
     - name: Checkout repository
+      shell: bash
       uses: actions/checkout@v2
 
     - name: Download file
+      shell: bash
       run: |
         mkdir -p $(dirname ${{ inputs.file_path }})
         curl -o ${{ inputs.file_path }} ${{ inputs.file_url }}
 
     - name: Check if the file has changed
-      id: check_changes
+      shell: bash
       run: |
         if [ -z "$(git status --porcelain)" ]; then
           echo "files_differ=false" >> $GITHUB_ENV
@@ -34,12 +36,14 @@ runs:
         fi
 
     - name: Configure Git
+      shell: bash
       if: env.files_differ == 'true'
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
     - name: Create or checkout branch from main
+      shell: bash
       if: env.files_differ == 'true'
       run: |
         if git show-ref --verify --quiet refs/heads/update-file-branch; then
@@ -50,6 +54,7 @@ runs:
         fi
 
     - name: Commit and push changes
+      shell: bash
       if: env.files_differ == 'true'
       run: |
         git add ${{ inputs.file_path }}
@@ -57,6 +62,7 @@ runs:
         git push --set-upstream origin update-file-branch --force
 
     - name: Check if PR already exists
+      shell: bash
       if: env.files_differ == 'true'
       run: |
         PR_EXISTS=$(gh pr list --head update-file-branch --json number --jq '.[].number' | wc -l)
@@ -67,6 +73,7 @@ runs:
         fi
 
     - name: Create PR if it doesn't exist
+      shell: bash
       if: env.files_differ == 'true' && env.pr_exists == 'false'
       run: |
         gh pr create --title "Sync privacy policy" --body "Sync privacy policy" --base main --head update-file-branch
