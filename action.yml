@@ -1,0 +1,72 @@
+name: 'Sync File'
+description: 'Sync a remote file to your repository'
+author: 'Johan de Jager'
+inputs:
+  file_url:
+    description: 'The URL of the file to sync'
+    required: true
+  file_path:
+    description: 'The path where the file should be saved'
+    required: true
+  github_token:
+    description: 'GitHub token for authentication'
+    required: true
+    default: ${{ secrets.GITHUB_TOKEN }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Download file
+      run: |
+        mkdir -p $(dirname ${{ inputs.file_path }})
+        curl -o ${{ inputs.file_path }} ${{ inputs.file_url }}
+
+    - name: Check if the file has changed
+      id: check_changes
+      run: |
+        if [ -z "$(git status --porcelain)" ]; then
+          echo "files_differ=false" >> $GITHUB_ENV
+        else
+          echo "files_differ=true" >> $GITHUB_ENV
+        fi
+
+    - name: Configure Git
+      if: env.files_differ == 'true'
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+    - name: Create or checkout branch from main
+      if: env.files_differ == 'true'
+      run: |
+        if git show-ref --verify --quiet refs/heads/update-file-branch; then
+          git checkout update-file-branch
+          git rebase main
+        else
+          git checkout -b update-file-branch
+        fi
+
+    - name: Commit and push changes
+      if: env.files_differ == 'true'
+      run: |
+        git add ${{ inputs.file_path }}
+        git commit -m "Sync ${{ inputs.file_path }}"
+        git push --set-upstream origin update-file-branch --force
+
+    - name: Check if PR already exists
+      if: env.files_differ == 'true'
+      run: |
+        PR_EXISTS=$(gh pr list --head update-file-branch --json number --jq '.[].number' | wc -l)
+        if [ "$PR_EXISTS" -gt 0 ]; then
+          echo "pr_exists=true" >> $GITHUB_ENV
+        else
+          echo "pr_exists=false" >> $GITHUB_ENV
+        fi
+
+    - name: Create PR if it doesn't exist
+      if: env.files_differ == 'true' && env.pr_exists == 'false'
+      run: |
+        gh pr create --title "Sync privacy policy" --body "Sync privacy policy" --base main --head update-file-branch
