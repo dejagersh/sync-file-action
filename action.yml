@@ -56,6 +56,10 @@ runs:
         git commit -m "Sync ${{ inputs.file_path }}"
         git push --set-upstream origin update-file-branch --force
 
+    - name: Set GH_TOKEN for GitHub CLI
+      shell: bash
+      run: echo "GH_TOKEN=${{ inputs.github_token }}" >> $GITHUB_ENV
+
     - name: Check if PR already exists
       shell: bash
       if: env.files_differ == 'true'
