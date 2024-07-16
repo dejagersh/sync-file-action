@@ -15,10 +15,6 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout repository
-      shell: bash
-      uses: actions/checkout@v2
-
     - name: Download file
       shell: bash
       run: |
@@ -74,5 +70,4 @@ runs:
     - name: Create PR if it doesn't exist
       shell: bash
       if: env.files_differ == 'true' && env.pr_exists == 'false'
-      run: |
-        gh pr create --title "Sync privacy policy" --body "Sync privacy policy" --base main --head update-file-branch
+      run: gh pr create --title "Sync privacy policy" --body "Sync privacy policy" --base main --head update-file-branch
